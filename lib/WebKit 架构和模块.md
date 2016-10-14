@@ -113,8 +113,30 @@ Chromium Shell 的目的在于测试 Content 模块功能以及被外部项目�
 
 ###### Browser 进程和 Renderer 进程
 
-上面简单地介绍了 Browser 进程和 Renderer 进程，可以在继续深入一下。
+上面简单地介绍了 Browser 进程和 Renderer 进程，可以在继续深入一下，了解一下 Chromium 是如何利用 WebKit 渲染网页的。
+
+![](../img/WebKit 接口层到用户界面.jpg)
+
+黏附层用来解决 WebKit 内部类型和 Chromium 的不一致，是一个简单的桥接层。往上就是 Renderer 进程，负责与进程通信以及调用响应的 WebKit 接口进行渲染。RendererHost 负责与 Renderer 进程通信。Web Contents 表示的是网页的内容。
 
 #### 多线程模型
 
+操作系统引入多线程的目的是提高进程内部的并发性，对于 Chromium 也是如此。对于 Browser 进程来说，多线程可以保证内部的 UI 线程（Browser 进程的主线程）不会被一些费时的操作所影响，导致页面失去响应。对于 Renderer 进程，Chromium 不让其它操作组织渲染线程的快速执行。
+
+> JavaScript 线程和 UI 线程是同一个线程，所以 JavaScript 中耗时的同步操作会导致页面失去响应。所以引入了多线程+消息循环的方式来模拟异步 I/O，JavaScript 调用的一些耗时的 API 都会在其它的线程中进行执行，然后在线程之间利用消息循环和消息队列来实现异步代码的执行。
+
+###### 工作模式
+
+1. Browser 进程收到用户请求，首先交给 UI 线程处理，将相应任务交给 IO 线程，它随即将任务传递给 Renderer 进程。
+2. Renderer 进程的 IO 线程进过简单解析，交给渲染线程，然后加载并渲染网页，中间可能需要 Browser 进程获取资源和需要 GPU 进程帮助渲染。最后将渲染结果由 IO 线程传递给 Browser 进程。
+3. 最后，Browser 进程将接收到的结果绘制出来。
+
+> Browser 进程来绘制？我的理解是 Renderer 已经渲染完成，Browser 仅仅是负责将渲染的结果进行绘制，是一个较简单的过程，不会造成什么奔溃。上一节的图大致也能说明这一点。
+
 ### WebKit2
+
+WebKit2 的出现前面讲过是为了实现多进程的架构。在此之前 Chromium 已经实现了多进程架构，但是并未将其整合进 WebKit 当中，苹果在商讨失败之后，便自己在 WebKit 内实现了一套多进程的架构。[具体的一些细节可以看这篇文章](http://www.codeweblog.com/%E6%B5%8F%E8%A7%88%E5%99%A8%E5%B8%82%E5%9C%BA%E6%B3%A2%E6%BE%9C-%E4%BB%8Ekhtml%E5%88%B0webkit-%E5%86%8D%E5%88%B0blink%E4%B8%8Eservo/)
+
+![](../img/WebKit2 接口和进程模型.jpg)
+
+WebKit2 和 Chromium 类似，将渲染放到了单独的进程中。上图的 UI 进程对应于 Chromium 的 Browser 进程，Web 进程对应于 Renderer 进程。接口暴露在 UI 进程中，浏览器只需要调用该接口即可。
