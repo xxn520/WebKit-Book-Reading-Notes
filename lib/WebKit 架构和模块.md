@@ -63,4 +63,58 @@ WebKit 代码相当多，大概超过 500 万行。幸运地是目录结构非�
 
 ### 基于 Blink 的 Chromium 浏览器结构
 
+Chromium 本来是基于 WebKit 的，转向 Blink 以后 WebKit 删掉了 Chromium 平台移植相关的代码，而 Blink 则删掉了其它 WebKit 复制出来的其它平台相关的代码。了解 Chromium 可以帮助了解如何基于 WebKit 构建浏览器。另外，Chromium 之上还有这大量的创新和先进的理念。 
+
+#### 模块和架构
+
+![](图片)
+
+从上图中可以看到，Blink 仅仅只是 Chromium 下层的一个模块，和它并列的还有著名的 V8 引擎，它代替了 WebKit 默认的 JavaScriptCore 引擎。
+
+在这些模块之上是著名的 Content 模块和 Content API。Content 模块的功能是用来渲染网页。它与 WebKit 直接用来渲染网页有所不同，它是为了获得沙箱模型、跨进程 GPU 加速、众多 HTML5 功能而存在的，这些功能很多就是在 Content 模块中实现的。它们将下层的渲染、安全、插件等机制隐藏起来，提供一个接口层，供上层使用。
+
+Chromium 浏览器、Chromium Shell、Android WebView 构建在这个 API 之上，前两者区别是 Chromium 浏览器是一个完整功能的浏览器，而 Chromium Shell 只是一个简单的“壳”。
+
+Chromium Shell 的目的在于测试 Content 模块功能以及被外部项目参考用来开发相关项目。
+
+而 Android WebView 目的则是用 Chromium 的实现来替换原来的系统默认 WebView。
+
+#### 多进程模型
+
+原来的浏览器都是单进程的，Chromium 率先尝试了多进程的架构，最明显的好处在于一个页面进程挂掉了，整个浏览器不会崩溃。在 Chromium 之后大多数主流浏览器都转向多进程的架构，WebKit2 当时便是为了支持多进程架构而出现的。
+
+多进程带了很多好处的同时，也增加了浏览器的复杂性以及资源的占用。但是对于稳定性、安全性的提升来说，以复杂性和资源占用作为代价应该还是值得。
+
+![](图片)
+
+> 下面的线是指这些进程之前存在通信。
+
+- Browser 进程：浏览器主进程，负责显示、页面管理，所有其它进程的祖先，负责它们的创建和销毁工作有且仅有一个。
+- Renderer 进程：负责页面渲染。一般来说数量与打开的页面数一致。（存在不一致情况：用户配置和沙箱）
+- NPAPI 进程：NPAPI 插件进程，每种类型只创建一次。
+- GPU 进程：最多一个，GPU 硬件加速打开时才被创建。
+- Pepper 进程：Pepper 插件创建的进程。
+- 其他类型进程：如 Linux 下的 Zygote 等。 
+
+> 原来以为只有 Browser 和 Renderer 进程，但是没想到啊。
+
+从上面的进程其实我们可以简单分析一下：主进程和渲染进程分开，因此渲染进程奔溃并不会导致浏览器的崩溃；每个网页都是独立的进程，因此页面之间不会相互影响；插件也是独立的进程，因此插件奔溃也不会导致浏览器的奔溃；GPU 进程也是独立的。
+
+在 Android 下面，稍微有些不同，因为 Android 系统的资源相对来说紧张，另外本身有一些限制。因此在 Android 下，GPU 进程变成了主进程的一个线程，Renderer 进程变成了服务进程。
+
+###### 用户配置的 Renderer 进程
+
+上面讲到用户可以对 Renderer 进程进行一些配置：
+
+- Process-per-site-instance：每个页面建立一个独立的 Renderer 进程。
+- Process-per-site：同一个域的页面共享同一个进程。
+- Process-per-tab：每个标签页创建一个独立的进程（默认）。
+- Single process：不为页面创建独立的进程，渲染工作在 Browser 的线程中进行。Android WebView 采用该模式。
+
+###### Browser 进程和 Renderer 进程
+
+上面简单地介绍了 Browser 进程和 Renderer 进程，可以在继续深入一下。
+
+#### 多线程模型
+
 ### WebKit2
