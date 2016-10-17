@@ -16,3 +16,4 @@
 - [第二章 HTML 网页和结构](./lib/HTML 网页和结构.md)
 - [第三章 WebKit 架构和模块](./lib/WebKit 架构和模块.md)
 - [第四章 资源加载和网络栈](./lib/资源加载和网络栈.md)
+- [第五章 HTML 解释器和 DOM 模型](./lib/HTML解释器和DOM模型.md)
